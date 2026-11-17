@@ -1,0 +1,1417 @@
+{
+  "name": "Loan CRM – Customer Record Management",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "loan-lookup",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -944,
+        -688
+      ],
+      "id": "d23ab22d-983c-48a7-8ad1-98685b5de033",
+      "name": "Webhook",
+      "webhookId": "fbc0ef16-dc1b-4bd1-9f88-da9a63823507",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pAUf7Iu8482OFbZE",
+          "name": "Loan bot webhook key"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Loan look "
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "loans",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "loan_code",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').item.json.body.loan_code }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        -688
+      ],
+      "id": "27b13a9a-4697-400c-bef4-ed081aaec2f7",
+      "name": "Get many rows",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "notesInFlow": true,
+      "waitBetweenTries": 1,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Get Loans"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "customers",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Get many rows').item.json.customer_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        -688
+      ],
+      "id": "9cd3b279-f98f-44fe-8da5-c872bb6475cc",
+      "name": "Get many rows1",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1,
+      "notesInFlow": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Get Customer"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Webhook').first().json.body;\nconst loan = $('Get many rows').first().json;\nconst customer = $('Get many rows1').first().json;\n\nif (!loan.id || !customer.id) {\n  return [{ json: { verified: false, reason: 'not_found' } }];\n}\n\nconst savedLast4 = String(customer.phone || '').replace(/\\D/g, '').slice(-4);\nconst sentLast4 = String(input.phone || '').replace(/\\D/g, '').slice(-4);\n\nif (!sentLast4 || savedLast4 !== sentLast4) {\n  return [{ json: { verified: false, reason: 'mismatch' } }];\n}\n\nconst today = new Date(); today.setHours(0, 0, 0, 0);\nconst daysOverdue = Math.max(0, Math.floor((today - new Date(loan.due_date)) / 86400000));\n\nreturn [{ json: {\n  verified: true,\n  customer_name: customer.full_name,\n  preferred_language: customer.preferred_language,\n  loan_code: loan.loan_code,\n  amount: loan.amount,\n  amount_paid: loan.amount_paid,\n  balance: loan.amount - loan.amount_paid,\n  due_date: loan.due_date,\n  days_overdue: daysOverdue,\n  status: loan.status\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        -688
+      ],
+      "id": "0d75f380-d856-45a9-8b10-9b03046e1bb3",
+      "name": "Code in JavaScript",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 1,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "notes": "Code node"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        432,
+        -688
+      ],
+      "id": "e5239dcb-f237-46e9-8b04-e0b40c39e2f6",
+      "name": "Respond to Webhook",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1,
+      "notesInFlow": true,
+      "onError": "continueRegularOutput",
+      "notes": "Respond to webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "00ba84e2-4097-473d-8a8b-5e178d3314f6",
+              "leftValue": "={{ $json.verified }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "a61def87-456a-415c-905a-7f7b56c3b7b3",
+              "leftValue": "={{ $json.verified }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        272,
+        -416
+      ],
+      "id": "1cd33dfd-26ae-46f2-af69-85a8aaa1f912",
+      "name": "If",
+      "executeOnce": false,
+      "retryOnFail": false,
+      "waitBetweenTries": 1,
+      "notesInFlow": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "notes": "Verification node"
+    },
+    {
+      "parameters": {
+        "enableResponseOutput": true,
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        704,
+        -128
+      ],
+      "id": "1a4744fc-efd3-43dc-8748-adeae71655fc",
+      "name": "Respond to Webhook1",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "notesInFlow": true,
+      "onError": "continueErrorOutput",
+      "notes": "Not verified "
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "payments",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "loan_id",
+              "fieldValue": "={{ $('Get many rows2').item.json.id }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $('Webhook1').item.json.body.amount }}"
+            },
+            {
+              "fieldId": "payment_date",
+              "fieldValue": "={{ $('Webhook1').item.json.body.payment_date }}"
+            },
+            {
+              "fieldId": "method",
+              "fieldValue": "={{ $('Webhook1').item.json.body.method }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "Pending"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        720,
+        -432
+      ],
+      "id": "1c798208-67cb-4e96-854c-d89df9dc380f",
+      "name": "Create a row",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "notes": "Create payment"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "log-payment",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -944,
+        -384
+      ],
+      "id": "ea309627-2c57-4cf7-bcad-f0863f99629e",
+      "name": "Webhook1",
+      "webhookId": "7a879c4c-c452-4f3d-a21e-b2a559e082c6",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pAUf7Iu8482OFbZE",
+          "name": "Loan bot webhook key"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "log-payment"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "loans",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "loan_code",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook1').item.json.body.loan_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        -384
+      ],
+      "id": "01f9b095-37d1-4b52-95c6-ea303ac7f754",
+      "name": "Get many rows2",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "notesInFlow": true,
+      "waitBetweenTries": 1,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Get Loans"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "customers",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Get many rows2').item.json.customer_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        -384
+      ],
+      "id": "1e103f05-cfd5-42bf-a20c-1da75ed019d2",
+      "name": "Get many rows3",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1,
+      "notesInFlow": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Get Customer"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Webhook1').first().json.body;\nconst loan = $('Get many rows2').first().json;\nconst customer = $('Get many rows3').first().json;\n\nif (!loan.id || !customer.id) {\n  return [{ json: { verified: false, reason: 'not_found' } }];\n}\n\nconst savedLast4 = String(customer.phone || '').replace(/\\D/g, '').slice(-4);\nconst sentLast4 = String(input.phone_last4 || '').replace(/\\D/g, '').slice(-4);\n\nif (!sentLast4 || savedLast4 !== sentLast4) {\n  return [{ json: { verified: false, reason: 'mismatch' } }];\n}\n\nconst today = new Date(); today.setHours(0, 0, 0, 0);\nconst daysOverdue = Math.max(0, Math.floor((today - new Date(loan.due_date)) / 86400000));\n\nreturn [{ json: {\n  verified: true,\n  customer_name: customer.full_name,\n  preferred_language: customer.preferred_language,\n  loan_code: loan.loan_code,\n  amount: loan.amount,\n  amount_paid: loan.amount_paid,\n  balance: loan.amount - loan.amount_paid,\n  due_date: loan.due_date,\n  days_overdue: daysOverdue,\n  status: loan.status\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        -384
+      ],
+      "id": "d41b68e4-4228-475c-9243-81bbd1ca57b7",
+      "name": "Code in JavaScript1",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 1,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "notes": "Code node"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        688,
+        -672
+      ],
+      "id": "5751dcab-f205-47c2-a9e6-7e09c327c861",
+      "name": "Respond to Webhook2",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1,
+      "notesInFlow": true,
+      "onError": "continueRegularOutput",
+      "notes": "Respond to webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "PTP",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -720,
+        -144
+      ],
+      "id": "24caa974-c197-4a82-b10f-5274019b0d2e",
+      "name": "Webhook2",
+      "webhookId": "e5eab9da-fbd2-44a1-9fe8-b06260fda846",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pAUf7Iu8482OFbZE",
+          "name": "Loan bot webhook key"
+        }
+      },
+      "notes": "Promise to pay  (PTP)"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        32,
+        -144
+      ],
+      "id": "3f8a7be5-1359-41e2-afc3-64b178cb86cb",
+      "name": "Respond to Webhook3",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1,
+      "notesInFlow": true,
+      "onError": "continueErrorOutput",
+      "notes": "Respond to webhook"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "customers",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "full_name",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook2').first().json.body.full_name }}"
+            },
+            {
+              "keyName": "phone",
+              "condition": "gte",
+              "keyValue": "={{ $json.body.phone_last4 }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        -144
+      ],
+      "id": "d1cf2b62-6ea8-40b9-9dd4-16143cd6088e",
+      "name": "Get many rows4",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "notes": "Get Customer"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "notes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "customer_id",
+              "fieldValue": "={{ $('Get many rows4').first().json.id }}"
+            },
+            {
+              "fieldId": "body",
+              "fieldValue": "={{ 'Promised to pay ₦' + $('Webhook2').first().json.body.amount + ' by ' + $('Webhook2').first().json.body.payment_date + ' (via chatbot)' }}"
+            },
+            {
+              "fieldId": "PTP_date",
+              "fieldValue": "={{ '{' + $('Webhook2').first().json.body.payment_date + '}' }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $('Webhook2').first().json.body.amount }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        -144
+      ],
+      "id": "ac6dd0af-c741-4d72-afa8-ff6e0407d149",
+      "name": "Create a row1",
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "notes": "Create Notes"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Get many rows6').item.json.email }}",
+        "subject": "Loan Repayment Reminder",
+        "emailType": "text",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        928,
+        272
+      ],
+      "id": "e8f94fea-1c1d-46ce-a31b-bbb957a583fa",
+      "name": "Send a message",
+      "webhookId": "accb91f3-dac1-4e7c-8f35-946409c04338",
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "rjgVI6MFQtk6afMV",
+          "name": "Gmail account"
+        }
+      },
+      "notes": "Loan Repayment Reminder"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a loan repayment email for this customer.\n\nCustomer name: {{ $('Get many rows6').first().json.full_name }}\nPreferred language: {{ $('Get many rows6').first().json.preferred_language }}\nOutstanding amount: ₦{{ $('Get many rows5').first().json.amount - $('Get many rows5').first().json.amount_paid }}\nDue date: {{ $('Get many rows5').first().json.due_date }}\nDays overdue: {{ Math.max(0, Math.floor((new Date() - new Date($('Get many rows5').first().json.due_date)) / 86400000)) }}\nPurpose of the message: {{ $('Webhook3').first().json.body.message_type || 'payment reminder' }}\n\nLanguage rules:\n- English: write in English.\n- Pidgin: write in Nigerian Pidgin.\n- Yoruba: write entirely in natural Yoruba.\n- Hausa: write entirely in natural Hausa.\n- Igbo: write entirely in natural Igbo.\n\nRules:\n- Polite, respectful, firm but never threatening, and short.\n- Use only the facts above. Do not invent account numbers, links, phone numbers, fees, or dates.\n- Do not mention AI or translation.\n- Return only the email text, with no subject line.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        608,
+        112
+      ],
+      "id": "26d66cb1-85e6-4818-aa25-d1eb2c63083a",
+      "name": "AI Agent",
+      "alwaysOutputData": true,
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        528,
+        384
+      ],
+      "id": "8382d116-5b03-4c12-9f73-bb9c34dc8c41",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Send message",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -928,
+        448
+      ],
+      "id": "d5145de4-9337-478c-830d-cf533bf290e3",
+      "name": "Webhook3",
+      "webhookId": "3392cb01-ba8b-48bd-8dda-103c9b41e94e",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pAUf7Iu8482OFbZE",
+          "name": "Loan bot webhook key"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "log-payment"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "loans",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "loan_code",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook3').item.json.body.loan_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        448
+      ],
+      "id": "de900b57-5b91-4d3b-baf6-274ab4d9a00a",
+      "name": "Get many rows5",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "notesInFlow": true,
+      "waitBetweenTries": 1,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "notes": "Get Loans"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "customers",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.customer_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        448
+      ],
+      "id": "c402755c-4dfd-491e-8cfd-627f53461afb",
+      "name": "Get many rows6",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1,
+      "notesInFlow": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "notes": "Get Customer"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Webhook3').first().json.body;\nconst loan = $('Get many rows5').first().json;\nconst customer = $('Get many rows6').first().json;\n\nif (!loan.id || !customer.id) {\n  return [{ json: { verified: false, reason: 'not_found' } }];\n}\n\nconst savedLast4 = String(customer.phone || '').replace(/\\D/g, '').slice(-4);\nconst sentLast4 = String(input.phone_last4 || '').replace(/\\D/g, '').slice(-4);\n\nif (!sentLast4 || savedLast4 !== sentLast4) {\n  return [{ json: { verified: false, reason: 'mismatch' } }];\n}\n\nconst today = new Date(); today.setHours(0, 0, 0, 0);\nconst daysOverdue = Math.max(0, Math.floor((today - new Date(loan.due_date)) / 86400000));\n\nreturn [{ json: {\n  verified: true,\n  customer_name: customer.full_name,\n  preferred_language: customer.preferred_language,\n  loan_code: loan.loan_code,\n  amount: loan.amount,\n  amount_paid: loan.amount_paid,\n  balance: loan.amount - loan.amount_paid,\n  due_date: loan.due_date,\n  days_overdue: daysOverdue,\n  status: loan.status\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        448
+      ],
+      "id": "8bfca286-5d9a-40bd-927b-675950b2e7bb",
+      "name": "Code in JavaScript2",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 1,
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "notes": "Code node"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "00ba84e2-4097-473d-8a8b-5e178d3314f6",
+              "leftValue": "={{ $json.verified }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "a61def87-456a-415c-905a-7f7b56c3b7b3",
+              "leftValue": "={{ $json.verified }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        288,
+        416
+      ],
+      "id": "7d208ad7-ea87-4025-8844-84407283b089",
+      "name": "If1",
+      "executeOnce": false,
+      "retryOnFail": false,
+      "waitBetweenTries": 1,
+      "notesInFlow": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "notes": "Verification node"
+    },
+    {
+      "parameters": {
+        "enableResponseOutput": true,
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        640,
+        656
+      ],
+      "id": "39691e3f-bdc5-48a1-bb7f-e2b5a0dea594",
+      "name": "Respond to Webhook4",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "notesInFlow": true,
+      "onError": "continueErrorOutput",
+      "notes": "Not verified "
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Escalation",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -912,
+        864
+      ],
+      "id": "c70b0703-ed03-4177-8b93-b19ecbd0bc06",
+      "name": "Webhook4",
+      "webhookId": "d8c18bae-7245-42b9-b50c-9b1ca81c81e6",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pAUf7Iu8482OFbZE",
+          "name": "Loan bot webhook key"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "log-payment"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "loans",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "loan_code",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook4').item.json.body.loan_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        864
+      ],
+      "id": "ece44188-2c79-41ec-9761-f280783f0362",
+      "name": "Get many rows7",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "notesInFlow": true,
+      "waitBetweenTries": 1,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Get Loans"
+    },
+    {
+      "parameters": {
+        "sendTo": "ojphils7@gmail.com",
+        "subject": "=Chatbot escalation: {{ $('Webhook4').first().json.body.reason }}",
+        "emailType": "text",
+        "message": "=Chatbot escalation\n\nReason: {{ $('Webhook4').first().json.body.reason }}\nLoan code given: {{ $('Webhook4').first().json.body.loan_id || 'not provided' }}\nLoan found in CRM: {{ $('Get many rows7').first().json.id ? 'Yes' : 'No' }}\n\nChat summary:\n{{ $('Webhook4').first().json.body.summary }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -272,
+        864
+      ],
+      "id": "41c1b197-0afe-44fd-8a1d-2bd7a7599376",
+      "name": "Send a message1",
+      "webhookId": "ab40678b-6f65-4fde-ad7b-0e96e8c4e701",
+      "alwaysOutputData": true,
+      "retryOnFail": false,
+      "executeOnce": true,
+      "notesInFlow": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "rjgVI6MFQtk6afMV",
+          "name": "Gmail account"
+        }
+      },
+      "notes": "Alert Officer"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "c9063528-2e97-4251-980d-27a7041b8b9b",
+              "leftValue": "={{ $('Get many rows7').first().json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -48,
+        864
+      ],
+      "id": "6717ff08-b640-4997-a410-c155d22501a6",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "ipzpdefrhsfhjedufkrj",
+        "tableId": "notes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "customer_id",
+              "fieldValue": "={{ $('Get many rows7').first().json.customer_id }}"
+            },
+            {
+              "fieldId": "body",
+              "fieldValue": "=ESCALATION from chatbot. Reason: {{ $('Webhook4').first().json.body.reason }}. Summary: {{ $('Webhook4').first().json.body.summary }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        176,
+        768
+      ],
+      "id": "05267d28-f4f7-4594-9381-232b8032d747",
+      "name": "Create a row2",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "notesInFlow": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "xvhVRLSJueqS2zvB",
+          "name": "Supabase account 2"
+        }
+      },
+      "notes": "Create note"
+    },
+    {
+      "parameters": {
+        "enableResponseOutput": true,
+        "respondWith": "json",
+        "responseBody": "{ \"escalated\": true, \"recorded_in_crm\": true }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        400,
+        768
+      ],
+      "id": "79c0c1e1-f163-4711-8d3c-1bc74ed25839",
+      "name": "Respond to Webhook5",
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "notes": "True"
+    },
+    {
+      "parameters": {
+        "enableResponseOutput": true,
+        "respondWith": "json",
+        "responseBody": "{ \"escalated\": true, \"recorded_in_crm\": false }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        176,
+        960
+      ],
+      "id": "0557cc2f-f25d-40ea-a0ca-4b0f6fe90288",
+      "name": "Respond to Webhook6",
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "notes": "False"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {},
+          "query": {},
+          "params": {},
+          "body": {
+            "name": "Ojo Philip",
+            "phone": "07089183410",
+            "loan_code": "LN-0VA001"
+          }
+        }
+      }
+    ],
+    "Respond to Webhook": [
+      {
+        "json": {
+          "verified": true,
+          "customer_name": "Ojo Philip",
+          "preferred_language": "English",
+          "loan_code": "LN-0VA001",
+          "amount": 200,
+          "amount_paid": 0,
+          "balance": 200,
+          "due_date": "2026-10-07",
+          "days_overdue": 30,
+          "status": "Overdue"
+        }
+      }
+    ],
+    "Webhook1": [
+      {
+        "json": {
+          "body": {
+            "loan_id": "LN-0VA001",
+            "phone_last4": "3410",
+            "amount": 100,
+            "payment_date": "2026-11-05",
+            "method": "Bank transfer",
+            "full_name": "CUSTOMER NAME"
+          }
+        }
+      }
+    ],
+    "Webhook2": [
+      {
+        "json": {
+          "body": {
+            "loan_id": "LN-0VA001",
+            "phone_last4": "3410",
+            "amount": 100,
+            "payment_date": "2026-11-05",
+            "method": "Bank transfer",
+            "full_name": "Ojo Philip"
+          }
+        }
+      }
+    ],
+    "Webhook3": [
+      {
+        "json": {
+          "body": {
+            "loan_id": "LN-0VA001",
+            "phone_last4": "3410",
+            "amount": 100,
+            "payment_date": "2026-11-05",
+            "method": "Bank transfer",
+            "full_name": "CUSTOMER NAME"
+          }
+        }
+      }
+    ],
+    "Webhook4": [
+      {
+        "json": {
+          "body": {
+            "loan_id": "LN-0VA001",
+            "phone_last4": "3410",
+            "amount": 100,
+            "payment_date": "2026-11-05",
+            "method": "Bank transfer",
+            "full_name": "CUSTOMER NAME"
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "Get many rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Get many rows2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows2": {
+      "main": [
+        [
+          {
+            "node": "Get many rows3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows3": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook2": {
+      "main": [
+        [
+          {
+            "node": "Get many rows4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows4": {
+      "main": [
+        [
+          {
+            "node": "Create a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook3": {
+      "main": [
+        [
+          {
+            "node": "Get many rows5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows5": {
+      "main": [
+        [
+          {
+            "node": "Get many rows6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows6": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook4": {
+      "main": [
+        [
+          {
+            "node": "Get many rows7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows7": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Create a row2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "76a76594-eeb8-49bd-ac8e-3592c8a9e06e",
+  "meta": {
+    "instanceId": "2eb772f97da2a60d9c8a3d9e3eaa5d1ae55895fea5de897455e755e2e055f077"
+  },
+  "nodeGroups": [],
+  "id": "QediOUgXZqF7VpaA",
+  "tags": []
+}
